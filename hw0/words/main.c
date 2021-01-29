@@ -46,28 +46,29 @@ WordCount* word_counts = NULL;
  */
 int num_words(FILE* infile) {
     int num_words = 0;
-    int last_was_alpha = 0;
-    int new_char;
+    int num_last_chars = 0;
     int frenzy_mode = 0;
+    int new_char;
 
-    do {
-        new_char = fgetc(infile);
+    new_char = fgetc(infile);
 
-        if (new_char != EOF) {
-            if (new_char == '\'') {
-                frenzy_mode = !frenzy_mode;
-            } else {
-                if (!frenzy_mode && isalpha(new_char)) {
-                    if (!last_was_alpha) {
-                        ++num_words;
-                        last_was_alpha = 1;
-                    }
-                } else {
-                    last_was_alpha = 0;
+    while (new_char != EOF) {
+        if (new_char == '\'') {
+            frenzy_mode = !frenzy_mode;
+
+        } else if (!frenzy_mode) {
+            if (isalpha(new_char)) {
+                ++num_last_chars;
+
+                if (num_last_chars == 2) {
+                    ++num_words;
                 }
+            } else {
+                num_last_chars = 0;
             }
         }
-    } while (new_char != EOF);
+        new_char = fgetc(infile);
+    }
 
     return num_words;
 }
@@ -151,14 +152,12 @@ int main(int argc, char* argv[]) {
           infile = fopen(argv[i], "r");
 
           if (infile == NULL) {
-//              printf("fopen failed!");
               return -1;
           }
 
           total_words += num_words(infile);
 
           if (fclose(infile) == EOF) {
-//              printf("fclose failed!");
               return -2;
           }
       }

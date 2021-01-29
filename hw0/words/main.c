@@ -151,14 +151,14 @@ int main(int argc, char* argv[]) {
           infile = fopen(argv[i], "r");
 
           if (infile == NULL) {
-              printf("fopen failed!");
+//              printf("fopen failed!");
               return -1;
           }
 
           total_words += num_words(infile);
 
           if (fclose(infile) == EOF) {
-              printf("fclose failed!");
+//              printf("fclose failed!");
               return -2;
           }
       }

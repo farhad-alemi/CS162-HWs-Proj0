@@ -140,6 +140,7 @@ int main(int argc, char* argv[]) {
   if ((argc - optind) < 1) {
     // No input file specified, instead, read from STDIN instead.
     infile = stdin;
+    total_words += num_words(infile);
   } else {
       for (int i = optind; i < argc; ++i) {
           infile = fopen(argv[i], "r");

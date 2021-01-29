@@ -57,7 +57,7 @@ int num_words(FILE* infile) {
             if (new_char == '\'') {
                 frenzy_mode = !frenzy_mode;
             } else {
-                if (isalpha(new_char)) {
+                if (!frenzy_mode && isalpha(new_char)) {
                     if (!last_was_alpha) {
                         ++num_words;
                         last_was_alpha = 1;

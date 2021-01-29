@@ -48,18 +48,23 @@ int num_words(FILE* infile) {
     int num_words = 0;
     int last_was_alpha = 0;
     int new_char;
+    int frenzy_mode = 0;
 
     do {
         new_char = fgetc(infile);
 
         if (new_char != EOF) {
-            if (isalpha(new_char)) {
-                if (!last_was_alpha) {
-                    ++num_words;
-                    last_was_alpha = 1;
-                }
+            if (new_char == '\'') {
+                frenzy_mode = !frenzy_mode;
             } else {
-                last_was_alpha = 0;
+                if (isalpha(new_char)) {
+                    if (!last_was_alpha) {
+                        ++num_words;
+                        last_was_alpha = 1;
+                    }
+                } else {
+                    last_was_alpha = 0;
+                }
             }
         }
     } while (new_char != EOF);

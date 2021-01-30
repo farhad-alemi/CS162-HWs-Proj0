@@ -102,6 +102,14 @@ void count_words(WordCount** wclist, FILE* infile) {
     while (new_char != EOF && num_last_chars <= MAX_WORD_LEN) {
         if (new_char == '\'') {
             frenzy_mode = !frenzy_mode;
+            if (frenzy_mode) {
+                if (num_last_chars > 1) {
+                    add_word(wclist, buffer);
+                }
+
+                num_last_chars = 0;
+                fill_array(buffer, MAX_WORD_LEN + 1, '\0');
+            }
 
         } else if (!frenzy_mode) {
             if (isalpha(new_char)) {

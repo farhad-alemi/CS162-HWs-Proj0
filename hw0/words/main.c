@@ -37,6 +37,7 @@ WordCount* word_counts = NULL;
 
 /* The maximum length of each word in a file */
 #define MAX_WORD_LEN 64
+void count_words(WordCount** wclist, FILE* infile);
 
 /*
  * 3.1.1 Total Word Count
@@ -45,6 +46,9 @@ WordCount* word_counts = NULL;
  * Useful functions: fgetc(), isalpha().
  */
 int num_words(FILE* infile) {
+    count_words(&word_counts, infile);
+    return len_words(word_counts);
+    /*
     int num_words = 0;
     int num_last_chars = 0;
     int frenzy_mode = 0;
@@ -71,6 +75,13 @@ int num_words(FILE* infile) {
     }
 
     return num_words;
+     */
+}
+
+void fill_array(char *arr, size_t length, char val) {
+    for (size_t i = 0; i < length; ++i) {
+        arr[i] = val;
+    }
 }
 
 /*
@@ -79,13 +90,60 @@ int num_words(FILE* infile) {
  * Given infile, extracts and adds each word in the FILE to `wclist`.
  * Useful functions: fgetc(), isalpha(), tolower(), add_word().
  */
-void count_words(WordCount** wclist, FILE* infile) {}
+void count_words(WordCount** wclist, FILE* infile) {
+    int num_last_chars = 0;
+    int frenzy_mode = 0;
+    int new_char;
+    char *buffer = (char*) malloc(sizeof(char) * (MAX_WORD_LEN + 1));
+
+    fill_array(buffer, MAX_WORD_LEN + 1, '\0');
+    new_char = fgetc(infile);
+
+    while (new_char != EOF && num_last_chars <= MAX_WORD_LEN) {
+        if (new_char == '\'') {
+            frenzy_mode = !frenzy_mode;
+
+        } else if (!frenzy_mode) {
+            if (isalpha(new_char)) {
+                buffer[num_last_chars] = tolower(new_char);
+                ++num_last_chars;
+
+            } else {
+                if (num_last_chars > 1) {
+                    add_word(wclist, buffer);
+                }
+
+                num_last_chars = 0;
+                fill_array(buffer, MAX_WORD_LEN + 1, '\0');
+            }
+        }
+        new_char = fgetc(infile);
+    }
+    free(buffer);
+}
 
 /*
  * Comparator to sort list by frequency.
  * Useful function: strcmp().
  */
-static bool wordcount_less(const WordCount* wc1, const WordCount* wc2) { return 0; }
+static bool wordcount_less(const WordCount* wc1, const WordCount* wc2) {
+    if (wc1 == NULL || wc2 == NULL) {
+        return false;
+    }
+    if (wc1->word == NULL) {
+        return false;
+    } else if (wc2->word == NULL) {
+        return true;
+    }
+
+    if (wc1->count < wc2->count) {
+        return true;
+    } else if (wc1->count > wc2->count) {
+        return false;
+    } else {
+        return strcmp(wc1->word, wc2->word) < 0;
+    }
+}
 
 // In trying times, displays a helpful message.
 static int display_help(void) {

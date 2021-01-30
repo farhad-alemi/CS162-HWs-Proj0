@@ -1,1 +1,1 @@
-Signle'
+Single characters, new lines, punctuation and word followed by EOF

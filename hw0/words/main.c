@@ -127,6 +127,12 @@ void count_words(WordCount** wclist, FILE* infile) {
         }
         new_char = fgetc(infile);
     }
+    if (num_last_chars > 1) {
+        add_word(wclist, buffer);
+    }
+
+    num_last_chars = 0;
+
     free(buffer);
 }
 
@@ -212,7 +218,7 @@ int main(int argc, char* argv[]) {
   if ((argc - optind) < 1) {
     // No input file specified, instead, read from STDIN instead.
     infile = stdin;
-    total_words += num_words(infile);
+    total_words = num_words(infile);
   } else {
       for (int i = optind; i < argc; ++i) {
           infile = fopen(argv[i], "r");
@@ -221,7 +227,7 @@ int main(int argc, char* argv[]) {
               return -1;
           }
 
-          total_words += num_words(infile);
+          total_words = num_words(infile);
 
           if (fclose(infile) == EOF) {
               return -2;

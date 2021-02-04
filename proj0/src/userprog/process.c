@@ -60,6 +60,8 @@ static void start_process(void* file_name_) {
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(file_name, &if_.eip, &if_.esp);
 
+  if_.esp -= 20;
+
   /* If load failed, quit. */
   palloc_free_page(file_name);
   if (!success)

@@ -18,7 +18,7 @@
    struct list_elem back to a structure object that contains it.
 
    For example, suppose there is a needed for a list of `struct
-   foo'. `struct foo' should contain a `struct list_elem'
+   foo'.  `struct foo' should contain a `struct list_elem'
    member, like so:
 
       struct foo
@@ -37,7 +37,7 @@
 
    Iteration is a typical situation where it is necessary to
    convert from a struct list_elem back to its enclosing
-   structure. Here's an example using foo_list:
+   structure.  Here's an example using foo_list:
 
       struct list_elem *e;
 

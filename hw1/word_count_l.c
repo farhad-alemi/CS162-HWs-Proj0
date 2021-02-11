@@ -98,22 +98,25 @@ static bool less_list(const struct list_elem* ewc1, const struct list_elem* ewc2
     }
   word_count_t *obj1 = list_entry(ewc1, word_count_t, elem);
   word_count_t *obj2 = list_entry(ewc2, word_count_t, elem);
-    if (obj1->word == NULL) {
-        return false;
-    } else if (obj2->word == NULL) {
-        return true;
-    }
 
-    if (obj1->count < obj2->count) {
-        return true;
-    } else if (obj1->count > obj2->count) {
-        return false;
-    } else {
-        return strcmp(obj1->word, obj2->word) < 0;
-    }
+//  void (*sapPtr)(int, int) = subtractAndPrint;
+  bool (*custom_comparator)(word_count_t*, word_count_t*) = aux;
+  return (*custom_comparator)(obj1, obj2);
+//    if (obj1->word == NULL) {
+//        return false;
+//    } else if (obj2->word == NULL) {
+//        return true;
+//    }
+//
+//    if (obj1->count < obj2->count) {
+//        return true;
+//    } else if (obj1->count > obj2->count) {
+//        return false;
+//    } else {
+//        return strcmp(obj1->word, obj2->word) < 0;
+//    }
 }
 
-void wordcount_sort(word_count_list_t* wclist,
-                    bool less(const word_count_t*, const word_count_t*)) {
+void wordcount_sort(word_count_list_t* wclist, bool less(const word_count_t*, const word_count_t*)) {
   list_sort(wclist, less_list, less);
 }

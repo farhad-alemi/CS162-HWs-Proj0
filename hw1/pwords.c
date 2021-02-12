@@ -48,7 +48,7 @@ void* threads_helper(void* args) {
     }
     count_words(args_obj->word_counts_ptr, file_ptr);
 
-    fclose(file_ptr);
+    //fclose(file_ptr);
     pthread_exit(NULL);
 }
 

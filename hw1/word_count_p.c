@@ -59,7 +59,7 @@ word_count_t* add_word(word_count_list_t* wclist, char* word) {
         return NULL;
     }
 
-    pthread_mutex_lock(&(wclist->lock));
+//    pthread_mutex_lock(&(wclist->lock));
     word_count_t *found_word = find_word(wclist, word);
 
     if (found_word == NULL) {
@@ -82,7 +82,7 @@ word_count_t* add_word(word_count_list_t* wclist, char* word) {
       found_word->count = found_word->count + 1;
   }
 
-    pthread_mutex_unlock(&(wclist->lock));
+//    pthread_mutex_unlock(&(wclist->lock));
     return found_word;
 }
 

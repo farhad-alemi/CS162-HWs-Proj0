@@ -84,19 +84,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
-  for (tid = 0; tid < num_threads; ++tid) {
-      int ret_val = pthread_join(threads_arr[tid], NULL);
-      if (ret_val) {
-          return -1;
+      for (tid = 0; tid < num_threads; ++tid) {
+          int ret_val = pthread_join(threads_arr[tid], NULL);
+          if (ret_val) {
+              return -1;
+          }
       }
-  }
-
-  free(args);
-  free(threads_arr);
+      free(args);
+      free(threads_arr);
   }
 
   /* Output final result of all threads' work. */
   wordcount_sort(&word_counts, less_count);
   fprint_words(&word_counts, stdout);
-  return 0;
+  pthread_exit(NULL);
 }

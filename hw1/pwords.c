@@ -32,6 +32,26 @@
 #include "word_count.h"
 #include "word_helpers.h"
 
+/* Struct for passing args. */
+struct arguments {
+    word_count_list_t *word_counts_ptr;
+    char *file_name;
+};
+
+/* Helper function used to add multi-threading functionality. */
+void* threads_helper(void* args) {
+    struct arguments *args_obj = (struct arguments *) args;
+
+    FILE *file_ptr = fopen(args_obj->file_name, "r");
+    if (file_ptr == NULL) {
+        pthread_exit(NULL);
+    }
+    count_words(args_obj->word_counts_ptr, file_ptr);
+
+    fclose(file_ptr);
+    pthread_exit(NULL);
+}
+
 /*
  * main - handle command line, spawning one thread per file.
  */
@@ -44,7 +64,35 @@ int main(int argc, char* argv[]) {
     /* Process stdin in a single thread. */
     count_words(&word_counts, stdin);
   } else {
-    /* TODO */
+    int num_threads = argc - 1;
+    pthread_t *threads_arr = malloc(sizeof(pthread_t) * num_threads);
+    if (threads_arr == NULL) {
+        return -1;
+    }
+
+    struct arguments *args = (struct arguments *) malloc(sizeof(struct arguments));
+    args->word_counts_ptr = &word_counts;
+    pthread_mutex_init(&(word_counts.lock), NULL);
+
+    long tid;
+    for (tid = 0; tid < num_threads; ++tid) {
+        args->file_name = argv[tid + 1];
+        int return_val = pthread_create(&threads_arr[tid], NULL, threads_helper, (void *) args);
+        if (return_val) {
+            printf("ERROR; return code from pthread_create() is %d\n", return_val);
+            exit(-1);
+        }
+    }
+
+  for (tid = 0; tid < num_threads; ++tid) {
+      int ret_val = pthread_join(threads_arr[tid], NULL);
+      if (ret_val) {
+          return -1;
+      }
+  }
+
+  free(args);
+  free(threads_arr);
   }
 
   /* Output final result of all threads' work. */

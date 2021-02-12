@@ -32,23 +32,15 @@
 #include "word_count.h"
 #include "word_helpers.h"
 
-///* Struct for passing args. */
-//struct arguments {
-//    word_count_list_t *word_counts_ptr;
-//    char *file_name;
-//}; fixme
-
+/* Global variable for the list. */
 word_count_list_t word_counts;
 
 /* Helper function used to add multi-threading functionality. */
 void* threads_helper(void* args) {
-//    struct arguments *args_obj = (struct arguments *) args;
-
     FILE *file_ptr = fopen((char *) args, "r");
     if (file_ptr == NULL) {
         pthread_exit(NULL);
     }
-//    count_words(args_obj->word_counts_ptr, file_ptr);
     count_words(&word_counts, file_ptr);
 
     fclose(file_ptr);
@@ -60,7 +52,6 @@ void* threads_helper(void* args) {
  */
 int main(int argc, char* argv[]) {
   /* Create the empty data structure. */
-//  word_count_list_t word_counts; fixme
   init_words(&word_counts);
 
   if (argc <= 1) {
@@ -73,14 +64,10 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-//    struct arguments *args = (struct arguments *) malloc(sizeof(struct arguments));
-//    args->word_counts_ptr = &word_counts; fixme
     pthread_mutex_init(&(word_counts.lock), NULL);
 
     long tid;
     for (tid = 0; tid < num_threads; ++tid) {
-//        args->file_name = argv[tid + 1];
-//        int return_val = pthread_create(&threads_arr[tid], NULL, threads_helper, (void *) args);
         int return_val = pthread_create(&threads_arr[tid], NULL, threads_helper, (void *) argv[tid + 1]);
         if (return_val) {
             printf("ERROR; return code from pthread_create() is %d\n", return_val);
@@ -94,7 +81,6 @@ int main(int argc, char* argv[]) {
               return -1;
           }
       }
-//      free(args);
       free(threads_arr);
   }
 

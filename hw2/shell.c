@@ -30,6 +30,8 @@ pid_t shell_pgid;
 
 int cmd_exit(struct tokens* tokens);
 int cmd_help(struct tokens* tokens);
+int cmd_cd(struct tokens* tokens);
+int cmd_pwd(struct tokens* tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens* tokens);
@@ -41,9 +43,13 @@ typedef struct fun_desc {
   char* doc;
 } fun_desc_t;
 
+int signals[] = {SIGINT, SIGQUIT, SIGKILL, SIGTERM, SIGTSTP, SIGCONT, SIGTTIN, SIGTTOU};
+
 fun_desc_t cmd_table[] = {
     {cmd_help, "?", "show this help menu"},
     {cmd_exit, "exit", "exit the command shell"},
+    {cmd_cd, "cd", "change the current directory"},
+    {cmd_pwd, "pwd", "print the current directory"},
 };
 
 /* Prints a helpful description for the given command */
@@ -55,6 +61,43 @@ int cmd_help(unused struct tokens* tokens) {
 
 /* Exits this shell */
 int cmd_exit(unused struct tokens* tokens) { exit(0); }
+
+/* Takes a token, validates it, and, if correct, changes the directory. */
+int cmd_cd(struct tokens* tokens) {
+    char* new_directory;
+    int ret_val;
+
+    if (tokens == NULL) {
+        return -1;
+    }
+
+    new_directory = tokens_get_token(tokens, 1);
+    if (new_directory == NULL) {
+        perror("Invalid directory");
+        return -1;
+    } else if (strcmp(new_directory, "~") == 0) {
+        new_directory = getenv("HOME");
+    }
+
+    ret_val = chdir(new_directory);
+    if (ret_val == -1) {
+        perror("Error changing directory");
+    }
+  return 1;
+}
+
+/* Takes a token, and, if valid, prints the current working directory. */
+int cmd_pwd(struct tokens* tokens) {
+    char buf[8192];
+    char* ret_val;
+
+    ret_val = getcwd(buf, sizeof(buf));
+    if (ret_val == NULL) {
+        perror("Error printing current working directory");
+    }
+    fprintf(stdout, "%s\n", buf);
+    return 1;
+}
 
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
@@ -110,8 +153,8 @@ int main(unused int argc, unused char* argv[]) {
     if (fundex >= 0) {
       cmd_table[fundex].fun(tokens);
     } else {
-      /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      /* Run commands as programs. */
+//      exec_programs(line);
     }
 
     if (shell_is_interactive)

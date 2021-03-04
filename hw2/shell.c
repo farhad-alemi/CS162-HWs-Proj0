@@ -154,6 +154,7 @@ void tokens_to_arr(char* arr[], struct tokens* tokens, size_t token_length) {
     arr[token_length] = NULL;
 }
 
+/* Returns true if the path is absolute. */
 bool is_absolute_path(char* curr_path) {
     for (int i = 0; i < sizeof(curr_path); ++i) {
         if (curr_path[i] == '/') {
@@ -196,11 +197,43 @@ char* find_possible_path(char* relative_path) {
     exit(1);
 }
 
+/* Processing '>' and '<' redirections, if any. */
+int redirections_handler(char* program_args[]) {
+    char temp_in_buf[BUF_SIZE / 64];
+    char temp_out_buf[BUF_SIZE / 64];
+    int file_desc;
+
+    for (int i = 0; program_args[i] != NULL; ++i) {
+        if (strcmp(">", program_args[i]) == 0) {
+            strcpy(temp_out_buf, program_args[i + 1]);
+            program_args[i] = NULL;
+            file_desc = creat(temp_out_buf, O_CREAT);
+            if (file_desc < 0) {
+                perror("Error Opening Input File");
+                return -1;
+            }
+            dup2(file_desc, STDERR_FILENO);
+            close(file_desc);
+
+        } else if (strcmp("<", program_args[i]) == 0) {
+            strcpy(temp_in_buf, program_args[i + 1]);
+            program_args[i] = NULL;
+            file_desc = open(temp_in_buf, O_RDONLY, 0);
+            if (file_desc < 0) {
+                perror("Error Opening Input File");
+                return -1;
+            }
+            dup2(file_desc, STDERR_FILENO);
+            close(file_desc);
+        }
+    }
+    return 0;
+}
 
 /* Executes single command. */
 int exec_single_program(char* input) {
     char* curr_path, *final_path;
-    int input_len;
+    int input_len, ret_val;
     struct tokens* tks;
 
     tks = tokenize(input);
@@ -210,6 +243,12 @@ int exec_single_program(char* input) {
     char* program_args[input_len + 1];
     tokens_to_arr(program_args, tks, input_len);
     final_path = (is_absolute_path(curr_path)) ? curr_path : find_possible_path(curr_path);
+
+    ret_val = redirections_handler(program_args);
+    if (ret_val != 0) {
+        return ret_val;
+    }
+
     execv(final_path, program_args);
     return 0;
 }

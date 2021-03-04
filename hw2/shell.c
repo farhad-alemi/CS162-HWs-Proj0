@@ -273,6 +273,7 @@ int exec_programs(char* input) {
     int pipe_file_desc[2];
     char first_part[BUF_SIZE / 2];
     char other_parts[BUF_SIZE];
+    char* offset_input;
     pid_t process_ID;
 
     if (input == NULL) {
@@ -280,9 +281,7 @@ int exec_programs(char* input) {
     }
     count_parts(input, &count, &partition_index);
 
-    if (partition_index == 0) {
-        return exec_single_program(input);
-    } else {
+    if (partition_index) {
         if (pipe(pipe_file_desc) < 0) {
             perror("Pipe Creation Failed");
             return -1;
@@ -292,13 +291,15 @@ int exec_programs(char* input) {
         if (process_ID > 0) {
             close(pipe_file_desc[1]);
             dup2(pipe_file_desc[0], STDIN_FILENO);
-            /* Copy the rest of input to buffer calculating the location of next token. */
-            strcpy(other_parts, input + count + 2);
+            /* Copy the rest of input to buffer calculating the location of next token. We assume there is always spaces
+             * to each side of '|'. */
+            offset_input = 2 + input + count;
+            strcpy(other_parts, offset_input);
             return exec_programs(other_parts);
 
         } else if (process_ID == 0) {
             close(pipe_file_desc[0]);
-            dup2(pipe_file_desc[1], STDIN_FILENO);
+            dup2(pipe_file_desc[1], STDOUT_FILENO);
 
             /* Copying the first token. */
             strncpy(first_part, input, partition_index - 1);
@@ -308,6 +309,8 @@ int exec_programs(char* input) {
             perror("Fork Failed");
             return -1;
         }
+    } else {
+        return exec_single_program(input);
     }
 }
 

@@ -16,6 +16,8 @@
 /* Convenience macro to silence compiler warnings about unused function parameters. */
 #define unused __attribute__((unused))
 #define BUF_SIZE 8192
+#define READ_WRITE_EXECUTE 0777
+#define NUM_SIGNALS 8
 
 /* Whether the shell is connected to an actual terminal or not. */
 bool shell_is_interactive;
@@ -134,6 +136,13 @@ void init_shell() {
     }
 }
 
+/* Sets the signals. */
+void set_signals(void* val) {
+    for (int i = 0; i < NUM_SIGNALS; ++i) {
+        signal(signals[i], val);
+    }
+}
+
 /* Returns (pass by reference) the count and start of the second partition (zero if there is only one partition). */
 void count_parts(char* input, int* count, int* partition_index) {
     const char DELIMITER = '|';
@@ -193,7 +202,7 @@ char* find_possible_path(char* relative_path) {
         }
     }
 
-    perror("Program does not exist\n");
+    //perror("Program does not exist\n");
     exit(1);
 }
 
@@ -207,12 +216,12 @@ int redirections_handler(char* program_args[]) {
         if (strcmp(">", program_args[i]) == 0) {
             strcpy(temp_out_buf, program_args[i + 1]);
             program_args[i] = NULL;
-            file_desc = creat(temp_out_buf, O_CREAT);
+            file_desc = creat(temp_out_buf, READ_WRITE_EXECUTE);
             if (file_desc < 0) {
-                perror("Error Opening Input File");
+                perror("Error Opening Output File");
                 return -1;
             }
-            dup2(file_desc, STDERR_FILENO);
+            dup2(file_desc, STDOUT_FILENO);
             close(file_desc);
 
         } else if (strcmp("<", program_args[i]) == 0) {
@@ -223,7 +232,7 @@ int redirections_handler(char* program_args[]) {
                 perror("Error Opening Input File");
                 return -1;
             }
-            dup2(file_desc, STDERR_FILENO);
+            dup2(file_desc, STDIN_FILENO);
             close(file_desc);
         }
     }
@@ -235,6 +244,11 @@ int exec_single_program(char* input) {
     char* curr_path, *final_path;
     int input_len, ret_val;
     struct tokens* tks;
+
+    /* Handling signals */
+    setpgid(getpid(), getpid());
+    tcsetpgrp(0, getpid());
+    set_signals(SIG_DFL);
 
     tks = tokenize(input);
     input_len = tokens_get_length(tks);
@@ -302,6 +316,11 @@ int main(unused int argc, unused char* argv[]) {
     pid_t process_ID;
     init_shell();
 
+    /* Handling signals */
+    setpgid(getpid(), getpid());
+    tcsetpgrp(0, getpid());
+    set_signals(SIG_IGN);
+
     static char line[4096];
     int line_num = 0;
     int ret_val = 0;
@@ -341,6 +360,9 @@ int main(unused int argc, unused char* argv[]) {
 
         /* Clean up memory */
         tokens_destroy(tokens);
+
+        tcsetpgrp(0, getpid());
+        set_signals(SIG_IGN);
     }
 
     return ret_val;

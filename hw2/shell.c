@@ -15,6 +15,7 @@
 
 /* Convenience macro to silence compiler warnings about unused function parameters. */
 #define unused __attribute__((unused))
+#define BUF_SIZE 8192
 
 /* Whether the shell is connected to an actual terminal or not. */
 bool shell_is_interactive;
@@ -38,25 +39,25 @@ typedef int cmd_fun_t(struct tokens* tokens);
 
 /* Built-in command struct and lookup table */
 typedef struct fun_desc {
-  cmd_fun_t* fun;
-  char* cmd;
-  char* doc;
+    cmd_fun_t* fun;
+    char* cmd;
+    char* doc;
 } fun_desc_t;
 
 int signals[] = {SIGINT, SIGQUIT, SIGKILL, SIGTERM, SIGTSTP, SIGCONT, SIGTTIN, SIGTTOU};
 
 fun_desc_t cmd_table[] = {
-    {cmd_help, "?", "show this help menu"},
-    {cmd_exit, "exit", "exit the command shell"},
-    {cmd_cd, "cd", "change the current directory"},
-    {cmd_pwd, "pwd", "print the current directory"},
+        {cmd_help, "?", "show this help menu"},
+        {cmd_exit, "exit", "exit the command shell"},
+        {cmd_cd, "cd", "change the current directory"},
+        {cmd_pwd, "pwd", "print the current directory"},
 };
 
 /* Prints a helpful description for the given command */
 int cmd_help(unused struct tokens* tokens) {
-  for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
-    printf("%s - %s\n", cmd_table[i].cmd, cmd_table[i].doc);
-  return 1;
+    for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
+        printf("%s - %s\n", cmd_table[i].cmd, cmd_table[i].doc);
+    return 1;
 }
 
 /* Exits this shell */
@@ -83,12 +84,12 @@ int cmd_cd(struct tokens* tokens) {
     if (ret_val == -1) {
         perror("Error changing directory");
     }
-  return 1;
+    return 1;
 }
 
 /* Takes a token, and, if valid, prints the current working directory. */
 int cmd_pwd(struct tokens* tokens) {
-    char buf[8192];
+    char buf[BUF_SIZE];
     char* ret_val;
 
     ret_val = getcwd(buf, sizeof(buf));
@@ -101,69 +102,207 @@ int cmd_pwd(struct tokens* tokens) {
 
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
-  for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
-    if (cmd && (strcmp(cmd_table[i].cmd, cmd) == 0))
-      return i;
-  return -1;
+    for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
+        if (cmd && (strcmp(cmd_table[i].cmd, cmd) == 0))
+            return i;
+    return -1;
 }
 
-/* Intialization procedures for this shell */
+/* Initialization procedures for this shell */
 void init_shell() {
-  /* Our shell is connected to standard input. */
-  shell_terminal = STDIN_FILENO;
+    /* Our shell is connected to standard input. */
+    shell_terminal = STDIN_FILENO;
 
-  /* Check if we are running interactively */
-  shell_is_interactive = isatty(shell_terminal);
+    /* Check if we are running interactively */
+    shell_is_interactive = isatty(shell_terminal);
 
-  if (shell_is_interactive) {
-    /* If the shell is not currently in the foreground, we must pause the shell until it becomes a
-     * foreground process. We use SIGTTIN to pause the shell. When the shell gets moved to the
-     * foreground, we'll receive a SIGCONT. */
-    while (tcgetpgrp(shell_terminal) != (shell_pgid = getpgrp()))
-      kill(-shell_pgid, SIGTTIN);
+    if (shell_is_interactive) {
+        /* If the shell is not currently in the foreground, we must pause the shell until it becomes a
+         * foreground process. We use SIGTTIN to pause the shell. When the shell gets moved to the
+         * foreground, we'll receive a SIGCONT. */
+        while (tcgetpgrp(shell_terminal) != (shell_pgid = getpgrp()))
+            kill(-shell_pgid, SIGTTIN);
 
-    /* Saves the shell's process id */
-    shell_pgid = getpid();
+        /* Saves the shell's process id */
+        shell_pgid = getpid();
 
-    /* Take control of the terminal */
-    tcsetpgrp(shell_terminal, shell_pgid);
+        /* Take control of the terminal */
+        tcsetpgrp(shell_terminal, shell_pgid);
 
-    /* Save the current termios to a variable, so it can be restored later. */
-    tcgetattr(shell_terminal, &shell_tmodes);
-  }
+        /* Save the current termios to a variable, so it can be restored later. */
+        tcgetattr(shell_terminal, &shell_tmodes);
+    }
+}
+
+/* Returns (pass by reference) the count and start of the second partition (zero if there is only one partition). */
+void count_parts(char* input, int* count, int* partition_index) {
+    const char DELIMITER = '|';
+
+    for (*count = 0, *partition_index = 0; input[*count] != '\0'; *count += 1) {
+        if (input[*count] == DELIMITER) {
+            *partition_index = *count;
+            break;
+        }
+    }
+}
+
+/* Fills array ARR with tokens. */
+void tokens_to_arr(char* arr[], struct tokens* tokens, size_t token_length) {
+    for (int i = 0; i < token_length; ++i) {
+        arr[i] = tokens_get_token(tokens, i);
+    }
+    arr[token_length] = NULL;
+}
+
+bool is_absolute_path(char* curr_path) {
+    for (int i = 0; i < sizeof(curr_path); ++i) {
+        if (curr_path[i] == '/') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Finds possible directories for a given relative path. */
+char* find_possible_path(char* relative_path) {
+    char curr_env[BUF_SIZE / 8];
+    const char DELIMITER = ':';
+    struct tokens* tokenized_paths;
+    size_t num_paths;
+
+    if (relative_path == NULL) {
+        return NULL;
+    }
+
+    strcpy(curr_env, getenv("PATH"));
+    /* Removing : and replacing it with spaces. This helps with tokenization. */
+    for (int i = 0; i < sizeof(curr_env)/sizeof(char); ++i) {
+        if (curr_env[i] == DELIMITER) {
+            curr_env[i] = ' ';
+        }
+    }
+    tokenized_paths = tokenize(curr_env);
+    num_paths = tokens_get_length(tokenized_paths);
+
+    for (int i = 0; i < num_paths; ++i) {
+        char temp_delimiter[] = {'/', '\0'};
+        char* temp_path = strcat(tokens_get_token(tokenized_paths, i), strcat(temp_delimiter, relative_path));
+        if (access(temp_path, F_OK) != -1) {
+            return temp_path;
+        }
+    }
+
+    perror("Program does not exist\n");
+    exit(1);
+}
+
+
+/* Executes single command. */
+int exec_single_program(char* input) {
+    char* curr_path, *final_path;
+    int input_len;
+    struct tokens* tks;
+
+    tks = tokenize(input);
+    input_len = tokens_get_length(tks);
+    curr_path = tokens_get_token(tks, 0);
+
+    char* program_args[input_len + 1];
+    tokens_to_arr(program_args, tks, input_len);
+    final_path = (is_absolute_path(curr_path)) ? curr_path : find_possible_path(curr_path);
+    execv(final_path, program_args);
+    return 0;
+}
+
+/* Runs programs mentioned in the given input. */
+int exec_programs(char* input) {
+    int count, partition_index;
+    int pipe_file_desc[2];
+    char first_part[BUF_SIZE / 2];
+    char other_parts[BUF_SIZE];
+    pid_t process_ID;
+
+    if (input == NULL) {
+        return -1;
+    }
+    count_parts(input, &count, &partition_index);
+
+    if (partition_index == 0) {
+        return exec_single_program(input);
+    } else {
+        if (pipe(pipe_file_desc) < 0) {
+            perror("Pipe Creation Failed");
+            return -1;
+        }
+
+        process_ID = fork();
+        if (process_ID > 0) {
+            close(pipe_file_desc[1]);
+            dup2(pipe_file_desc[0], STDIN_FILENO);
+            /* Copy the rest of input to buffer calculating the location of next token. */
+            strcpy(other_parts, input + count + 2);
+            return exec_programs(other_parts);
+
+        } else if (process_ID == 0) {
+            close(pipe_file_desc[0]);
+            dup2(pipe_file_desc[1], STDIN_FILENO);
+
+            /* Copying the first token. */
+            strncpy(first_part, input, partition_index - 1);
+            first_part[partition_index - 1] = '\0';
+            return exec_single_program(first_part);
+        } else {
+            perror("Fork Failed");
+            return -1;
+        }
+    }
 }
 
 int main(unused int argc, unused char* argv[]) {
-  init_shell();
+    int status;
+    pid_t process_ID;
+    init_shell();
 
-  static char line[4096];
-  int line_num = 0;
+    static char line[4096];
+    int line_num = 0;
+    int ret_val = 0;
 
-  /* Please only print shell prompts when standard input is not a tty */
-  if (shell_is_interactive)
-    fprintf(stdout, "%d: ", line_num);
+    /* Please only print shell prompts when standard input is not a tty */
+    if (shell_is_interactive)
+        fprintf(stdout, "%d: ", line_num);
 
-  while (fgets(line, 4096, stdin)) {
-    /* Split our line into words. */
-    struct tokens* tokens = tokenize(line);
+    while (fgets(line, 4096, stdin)) {
+        /* Split our line into words. */
+        struct tokens* tokens = tokenize(line);
 
-    /* Find which built-in function to run. */
-    int fundex = lookup(tokens_get_token(tokens, 0));
+        /* Find which built-in function to run. */
+        int fundex = lookup(tokens_get_token(tokens, 0));
 
-    if (fundex >= 0) {
-      cmd_table[fundex].fun(tokens);
-    } else {
-      /* Run commands as programs. */
-//      exec_programs(line);
+        if (fundex >= 0) {
+            cmd_table[fundex].fun(tokens);
+        } else {
+            /* Run commands as programs. */
+            process_ID = fork();
+
+            if (process_ID > 0) {
+                /* Parent process waits. */
+                wait(&status);
+            } else if (process_ID == 0) {
+                /* Child process executes programs. */
+                ret_val = exec_programs(line);
+            } else {
+                perror("Main Fork Failed");
+                return -1;
+            }
+        }
+
+        if (shell_is_interactive)
+            /* Please only print shell prompts when standard input is not a tty */
+            fprintf(stdout, "%d: ", ++line_num);
+
+        /* Clean up memory */
+        tokens_destroy(tokens);
     }
 
-    if (shell_is_interactive)
-      /* Please only print shell prompts when standard input is not a tty */
-      fprintf(stdout, "%d: ", ++line_num);
-
-    /* Clean up memory */
-    tokens_destroy(tokens);
-  }
-
-  return 0;
+    return ret_val;
 }

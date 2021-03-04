@@ -138,6 +138,7 @@ void init_shell() {
 
 /* Sets the signals. */
 void set_signals(void* val) {
+    tcsetpgrp(0, getpid());
     for (int i = 0; i < NUM_SIGNALS; ++i) {
         signal(signals[i], val);
     }
@@ -174,7 +175,7 @@ bool is_absolute_path(char* curr_path) {
 }
 
 /* Finds possible directories for a given relative path. */
-char* find_possible_path(char* relative_path) {
+char* find_potential_path(char* relative_path) {
     char curr_env[BUF_SIZE / 8];
     const char DELIMITER = ':';
     struct tokens* tokenized_paths;
@@ -185,7 +186,7 @@ char* find_possible_path(char* relative_path) {
     }
 
     strcpy(curr_env, getenv("PATH"));
-    /* Removing : and replacing it with spaces. This helps with tokenization. */
+    /* Removing : and replacing it with spaces. This prepares input for tokenization. */
     for (int i = 0; i < sizeof(curr_env)/sizeof(char); ++i) {
         if (curr_env[i] == DELIMITER) {
             curr_env[i] = ' ';
@@ -202,7 +203,6 @@ char* find_possible_path(char* relative_path) {
         }
     }
 
-    //perror("Program does not exist\n");
     exit(1);
 }
 
@@ -247,7 +247,6 @@ int exec_single_program(char* input) {
 
     /* Handling signals */
     setpgid(getpid(), getpid());
-    tcsetpgrp(0, getpid());
     set_signals(SIG_DFL);
 
     tks = tokenize(input);
@@ -256,7 +255,7 @@ int exec_single_program(char* input) {
 
     char* program_args[input_len + 1];
     tokens_to_arr(program_args, tks, input_len);
-    final_path = (is_absolute_path(curr_path)) ? curr_path : find_possible_path(curr_path);
+    final_path = (is_absolute_path(curr_path)) ? curr_path : find_potential_path(curr_path);
 
     ret_val = redirections_handler(program_args);
     if (ret_val != 0) {
@@ -321,7 +320,6 @@ int main(unused int argc, unused char* argv[]) {
 
     /* Handling signals */
     setpgid(getpid(), getpid());
-    tcsetpgrp(0, getpid());
     set_signals(SIG_IGN);
 
     static char line[4096];
@@ -344,7 +342,6 @@ int main(unused int argc, unused char* argv[]) {
         } else {
             /* Run commands as programs. */
             process_ID = fork();
-
             if (process_ID > 0) {
                 /* Parent process waits. */
                 wait(&status);
@@ -364,7 +361,6 @@ int main(unused int argc, unused char* argv[]) {
         /* Clean up memory */
         tokens_destroy(tokens);
 
-        tcsetpgrp(0, getpid());
         set_signals(SIG_IGN);
     }
 

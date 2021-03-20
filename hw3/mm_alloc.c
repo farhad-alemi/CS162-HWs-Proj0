@@ -130,6 +130,7 @@ void* mm_malloc(size_t size) {
   if (found != NULL) {
       found->free = 0;
       found->size = size;
+      memset(heap_to_data(found), 0, size);
       return heap_to_data(found);
   } else {
       meta_ptr = sbrk(sizeof(heap_t));
@@ -143,7 +144,6 @@ void* mm_malloc(size_t size) {
       push_back_lst(meta_ptr);
 
       memset(data_ptr, 0, size);
-
       return data_ptr;
   }
 }

@@ -33,9 +33,19 @@ static void load_alloc_functions() {
 int main() {
   load_alloc_functions();
 
-  int* data = mm_malloc(sizeof(int));
-  assert(data != NULL);
-  data[0] = 0x162;
-  mm_free(data);
-  puts("malloc test successful!");
+//   int* data = mm_malloc(sizeof(int));
+//   assert(data != NULL);
+//   data[0] = 0x162;
+//   mm_free(data);
+//   puts("malloc test successful!");
+
+  int* first_ptr = mm_malloc(5);
+  size_t copy1 = (size_t) first_ptr;
+
+  mm_free(first_ptr);
+  int* sec_ptr = mm_malloc(5);
+  size_t copy2 = (size_t)sec_ptr;
+    mm_free(sec_ptr);
+  printf("%lu, %lu", copy1, copy2);
+
 }

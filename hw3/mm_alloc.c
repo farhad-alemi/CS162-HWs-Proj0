@@ -44,7 +44,7 @@ void fragment(heap_t* struct_ptr, size_t request_size) {
     }
 
     if (struct_ptr->next == NULL) {
-        original_size = sbrk(0) - (size_t) struct_ptr - sizeof(heap_t);
+        original_size = (size_t) sbrk(0) - (size_t) struct_ptr - sizeof(heap_t);
     } else {
         original_size = (size_t) struct_ptr->next - (size_t) struct_ptr - sizeof(heap_t);
     }
@@ -62,7 +62,7 @@ void fragment(heap_t* struct_ptr, size_t request_size) {
             new_elem->next->prev = new_elem;
         } else {
           new_elem->next = NULL;
-          new_elem->size = sbrk(0) - (size_t)new_elem - sizeof(heap_t);
+          new_elem->size = (size_t) sbrk(0) - (size_t)new_elem - sizeof(heap_t);
         }
         struct_ptr->next = new_elem;
     }
@@ -73,10 +73,9 @@ void fragment(heap_t* struct_ptr, size_t request_size) {
 */
 heap_t* find_first_fit(size_t request_size) {
     heap_t* iter;
-    size_t heap_t_size = sizeof(heap_t);
 
     for (iter = heap_ptr; iter != NULL; iter = iter->next) {
-        if (iter->free && iter->size >= heap_t_size + request_size) {
+        if (iter->free && iter->size >= request_size) {
             fragment(iter, request_size);
             return iter;
         }

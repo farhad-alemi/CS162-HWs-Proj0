@@ -217,6 +217,7 @@ void mm_free(void* ptr) {
     }
 
     meta_ptr = data_to_heap(ptr);
+    memset(ptr, 0, data_to_heap(ptr)->size);
     meta_ptr->free = 1;
 
     coalesce(meta_ptr);

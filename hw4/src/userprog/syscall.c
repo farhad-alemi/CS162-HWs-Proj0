@@ -76,6 +76,8 @@ static void syscall_close(int fd) {
   }
 }
 
+//create func here
+
 static void syscall_handler(struct intr_frame* f) {
   uint32_t* args = (uint32_t*)f->esp;
   struct thread* t = thread_current();
@@ -110,6 +112,7 @@ static void syscall_handler(struct intr_frame* f) {
       validate_buffer_in_user_region(&args[1], sizeof(uint32_t));
       syscall_close((int)args[1]);
       break;
+      // case SYS_SBRK:
 
     default:
       printf("Unimplemented system call: %d\n", (int)args[0]);

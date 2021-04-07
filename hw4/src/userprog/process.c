@@ -18,6 +18,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "lib/user/syscall.h"
 
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
@@ -203,6 +204,10 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
   off_t file_ofs;
   bool success = false;
   int i;
+
+  /* Heap Ptrs. */
+  //   t->heap_base = sbrk((intptr_t)0);
+  //   t->heap_brk = sbrk((intptr_t)0);
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create();

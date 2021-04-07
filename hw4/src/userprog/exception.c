@@ -6,6 +6,9 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "threads/palloc.h"
+#include "userprog/pagedir.h"
+#include "process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -147,17 +150,32 @@ static void page_fault(struct intr_frame* f) {
    * the kernel and end up here. These checks below will allow us to determine
    * that this happened and terminate the process appropriately.
    */
-  if (!user && t->in_syscall && is_user_vaddr(fault_addr))
+  if (!user && t->in_syscall && is_user_vaddr(fault_addr)) {
     syscall_exit(-1);
+  }
 
-  /*
-   * If we faulted in user mode, then we assume it's an invalid memory access
-   * and terminate the process. In Homework 5, Part A, you should no longer
-   * assume this; depending on the nature of the fault, the stack may need to
-   * be grown.
-   */
-  if (user)
+  if (user && fault_addr < (f->esp - 32)) {
     syscall_exit(-1);
+  } else {
+    for (void* i = pg_round_down(fault_addr); pagedir_get_page(t->pagedir, i) == NULL;
+         i += PGSIZE) {
+      void* kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+      bool success;
+
+      if (kpage != NULL) {
+        success = pagedir_set_page(t->pagedir, i, kpage, true);
+        if (!success) {
+          for (void* j = pg_round_down(fault_addr); j <= i; j += PGSIZE) {
+            palloc_free_page(pagedir_get_page(t->pagedir, j));
+          }
+          return;
+        }
+      } else {
+        syscall_exit(-1);
+      }
+    }
+    return;
+  }
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

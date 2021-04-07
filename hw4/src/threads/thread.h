@@ -103,6 +103,10 @@ struct thread {
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
+
+  /* Heap Ptrs. */
+  void* heap_base;
+  void* heap_brk;
 };
 
 /* If false (default), use round-robin scheduler.

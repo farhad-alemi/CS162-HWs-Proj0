@@ -80,48 +80,51 @@ static void syscall_close(int fd) {
 
 static void* syscall_sbrk(int increment) {
   struct thread* t = thread_current();
-  void* prev_val = t->heap_brk;
+  void* temp = t->heap_brk;
+  void* page_addr;
+  size_t page_cnt;
+  bool success;
 
   if (increment > 0) {
-    if (increment + t->heap_brk > pg_round_up(t->heap_brk)) {
-      for (void* i = pg_round_up(t->heap_brk); i < pg_round_up(increment + t->heap_brk);
-           i += PGSIZE) {
-        void* kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-        bool success;
+    page_cnt = (pg_round_up(temp + increment) - pg_round_up(temp)) / PGSIZE;
+    page_addr = palloc_get_multiple(PAL_ZERO | PAL_USER, page_cnt);
 
-        if (kpage != NULL) {
-          success = pagedir_set_page(t->pagedir, i, kpage, true);
+    if (page_addr == NULL && page_cnt) {
+      goto fail;
+    }
 
-          if (!success) {
-            for (void* j = pg_round_up(t->heap_brk); j <= i; j += PGSIZE) {
-              palloc_free_page(pagedir_get_page(t->pagedir, j));
-            }
+    temp = pg_round_up(temp);
 
-            return (void*)-1;
-          }
-        } else {
-          return (void*)-1; //todo if kpage == NULL
-        }
+    for (size_t i = 0; i < page_cnt; ++i) {
+      success = pagedir_set_page(t->pagedir, temp + i * PGSIZE, page_addr + i * PGSIZE, true);
+
+      if (!success) {
+        goto fail;
       }
-
-      t->heap_brk += increment;
-      return prev_val;
-    } else {
-      t->heap_brk += increment;
-      return prev_val;
     }
-  } else if (increment == 0) {
-    return prev_val;
-  } else {
-    /* Deallocation*/
-    void* new_brk = t->heap_brk + increment;
 
-    for (void* j = pg_round_down(t->heap_brk); j >= new_brk; j -= PGSIZE) {
-      palloc_free_page(pagedir_get_page(t->pagedir, j));
-    }
+    temp = t->heap_brk;
     t->heap_brk += increment;
-    return prev_val;
+    return temp;
+  } else if (increment == 0) {
+    return temp;
+  } else {
+    increment = (increment + temp < t->heap_base) ? temp - t->heap_base : increment;
+    page_cnt = (pg_round_up(temp) - pg_round_up(increment + temp)) / PGSIZE;
+    temp = pg_round_up(increment + temp);
+
+    for (size_t i = 0; i < page_cnt; ++i) {
+      palloc_free_page(pagedir_get_page(t->pagedir, temp + i * PGSIZE));
+      pagedir_clear_page(t->pagedir, temp + i * PGSIZE);
+    }
+
+    temp = t->heap_brk;
+    t->heap_brk += increment;
+    return temp;
   }
+
+fail:
+  return (void*)-1;
 }
 
 static void syscall_handler(struct intr_frame* f) {

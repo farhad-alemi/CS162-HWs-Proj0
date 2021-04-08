@@ -7,6 +7,8 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/palloc.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler(struct intr_frame*);
 
@@ -76,7 +78,51 @@ static void syscall_close(int fd) {
   }
 }
 
-//create func here
+static void* syscall_sbrk(int increment) {
+  struct thread* t = thread_current();
+  void* prev_val = t->heap_brk;
+
+  if (increment > 0) {
+    if (increment + t->heap_brk > pg_round_up(t->heap_brk)) {
+      for (void* i = pg_round_up(t->heap_brk); i < pg_round_up(increment + t->heap_brk);
+           i += PGSIZE) {
+        void* kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+        bool success;
+
+        if (kpage != NULL) {
+          success = pagedir_set_page(t->pagedir, i, kpage, true);
+
+          if (!success) {
+            for (void* j = pg_round_up(t->heap_brk); j <= i; j += PGSIZE) {
+              palloc_free_page(pagedir_get_page(t->pagedir, j));
+            }
+
+            return (void*)-1;
+          }
+        } else {
+          return (void*)-1; //todo if kpage == NULL
+        }
+      }
+
+      t->heap_brk += increment;
+      return prev_val;
+    } else {
+      t->heap_brk += increment;
+      return prev_val;
+    }
+  } else if (increment == 0) {
+    return prev_val;
+  } else {
+    /* Deallocation*/
+    void* new_brk = t->heap_brk + increment;
+
+    for (void* j = pg_round_down(t->heap_brk); j >= new_brk; j -= PGSIZE) {
+      palloc_free_page(pagedir_get_page(t->pagedir, j));
+    }
+    t->heap_brk += increment;
+    return prev_val;
+  }
+}
 
 static void syscall_handler(struct intr_frame* f) {
   uint32_t* args = (uint32_t*)f->esp;
@@ -112,7 +158,9 @@ static void syscall_handler(struct intr_frame* f) {
       validate_buffer_in_user_region(&args[1], sizeof(uint32_t));
       syscall_close((int)args[1]);
       break;
-      // case SYS_SBRK:
+    case SYS_SBRK:
+      f->eax = (uint32_t)syscall_sbrk((int)args[1]);
+      break;
 
     default:
       printf("Unimplemented system call: %d\n", (int)args[0]);

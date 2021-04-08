@@ -205,10 +205,6 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
   bool success = false;
   int i;
 
-  /* Heap Ptrs. */
-  //   t->heap_base = sbrk((intptr_t)0);
-  //   t->heap_brk = sbrk((intptr_t)0);
-
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create();
   if (t->pagedir == NULL)
@@ -274,6 +270,10 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
           }
           if (!load_segment(file, file_page, (void*)mem_page, read_bytes, zero_bytes, writable))
             goto done;
+
+          /* Heap Ptrs. */
+          t->heap_base = pg_round_up((void*)(mem_page + read_bytes + zero_bytes));
+          t->heap_brk = pg_round_up((void*)(mem_page + read_bytes + zero_bytes));
         } else
           goto done;
         break;

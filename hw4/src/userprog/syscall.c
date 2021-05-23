@@ -109,7 +109,7 @@ static void* syscall_sbrk(int increment) {
   } else if (increment == 0) {
     return temp;
   } else {
-    increment = (increment + temp < t->heap_base) ? temp - t->heap_base : increment;
+    increment = (increment + temp < t->heap_base) ? t->heap_brk : increment;
     page_cnt = (pg_round_up(temp) - pg_round_up(increment + temp)) / PGSIZE;
     temp = pg_round_up(increment + temp);
 
